@@ -84,7 +84,7 @@ const start = () => {
                     addDepartment();
                     break;
                 case "Remove Department":
-                    comingSoon();
+                    removeDepartment();
                     break;
                 default:
                     console.log("Close Connection");
@@ -554,20 +554,17 @@ function removeRole() {
                     (err, resCount) => {
                         if (err) throw err;
                         // Log all results of the SELECT statement
-                        console.log(resCount);
-                        console.log(resCount[0].COUNT);
                         let result = resCount[0].COUNT === 0;
-                        console.log(result);
                         if (result) {
-                            // connection.query(
-                            //     'DELETE FROM role WHERE id = ?',
-                            //     roleId,
-                            //     (err, res) => {
-                            //         if (err) throw err;
+                            connection.query(
+                                'DELETE FROM role WHERE id = ?',
+                                roleId,
+                                (err, res) => {
+                                    if (err) throw err;
                                     console.log(`The ${data.role} role has been removed from the system.`);
                                     start();
-                                // }
-                            // );
+                                }
+                            );
                         }
                         else {
                             console.error(`Unable to remove the ${data.role} role until no employees are assigned this role.`);
@@ -627,6 +624,67 @@ function addDepartment() {
         );
     }
     )
+};
+
+function removeDepartment() {
+    connection.query(`
+    SELECT 
+        d.id, d.name
+    FROM 
+        department d
+    `,
+        (err, resDepartment) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            departmentArray = []
+            resDepartment.forEach(departmentData => {
+                departmentArray.push(departmentData.name);
+            });
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "department",
+                    choices: departmentArray,
+                    message: `Which department do you want to remove?`
+                },
+            ]).then(function (data) {
+                const departmentArray2 = resDepartment.filter(departmentData => departmentData.name === data.department);
+                const departmentId = departmentArray2[0].id;
+
+                connection.query(`
+                SELECT 
+                    count(*) as COUNT
+                FROM 
+                    role r
+                WHERE
+                    r.department_id = ?`,
+                    departmentId,
+                    (err, resCount) => {
+                        if (err) throw err;
+                        // Log all results of the SELECT statement
+                        console.log(resCount);
+                        console.log(resCount[0].COUNT);
+                        let result = resCount[0].COUNT === 0;
+                        console.log(result);
+                        if (result) {
+                            // connection.query(
+                            //     'DELETE FROM department WHERE id = ?',
+                            //     departmentId,
+                            //     (err, res) => {
+                            //         if (err) throw err;
+                                    console.log(`The ${data.department} department has been removed from the system.`);
+                                    start();
+                                // }
+                            // );
+                        }
+                        else {
+                            console.error(`Unable to remove the ${data.department} department until no roles are assigned this department.`);
+                            start();
+                        };
+                    }
+                )
+            });
+        })
 };
 
 // connect to the mysql server and sql database
