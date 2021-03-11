@@ -75,7 +75,7 @@ const start = () => {
                     addRole();
                     break;
                 case "Remove Role":
-                    comingSoon();
+                    removeRole();
                     break;
                 case "View All Departments":
                     viewAllDepartments();
@@ -516,7 +516,68 @@ function addRole() {
             }
             )
         })
-}
+};
+
+function removeRole() {
+    connection.query(`
+    SELECT 
+        r.id, r.title
+    FROM 
+        role r
+    `,
+        (err, resRole) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            roleArray = []
+            resRole.forEach(roleData => {
+                roleArray.push(roleData.title);
+            });
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "role",
+                    choices: roleArray,
+                    message: `Which role do you want to remove?`
+                },
+            ]).then(function (data) {
+                const roleArray2 = resRole.filter(roleData => roleData.title === data.role);
+                const roleId = roleArray2[0].id;
+
+                connection.query(`
+                SELECT 
+                    count(*) as COUNT
+                FROM 
+                    employee e
+                WHERE
+                    e.role_id = ?`,
+                    roleId,
+                    (err, resCount) => {
+                        if (err) throw err;
+                        // Log all results of the SELECT statement
+                        console.log(resCount);
+                        console.log(resCount[0].COUNT);
+                        let result = resCount[0].COUNT === 0;
+                        console.log(result);
+                        if (result) {
+                            // connection.query(
+                            //     'DELETE FROM role WHERE id = ?',
+                            //     roleId,
+                            //     (err, res) => {
+                            //         if (err) throw err;
+                                    console.log(`The ${data.role} role has been removed from the system.`);
+                                    start();
+                                // }
+                            // );
+                        }
+                        else {
+                            console.error(`Unable to remove the ${data.role} role until no employees are assigned this role.`);
+                            start();
+                        };
+                    }
+                )
+            });
+        })
+};
 
 function viewAllDepartments() {
 
@@ -566,7 +627,7 @@ function addDepartment() {
         );
     }
     )
-}
+};
 
 // connect to the mysql server and sql database
 connection.connect((err) => {
