@@ -62,6 +62,9 @@ const start = () => {
                 case "Add Employee":
                     addEmployee();
                     break;
+                case "Remove Employee":
+                    removeEmployee();
+                    break;
                 case "Update Employee Role":
                     updateEmployeeRole();
                     break;
@@ -325,6 +328,44 @@ function addEmployee() {
                     )
                 })
         })
+};
+
+function removeEmployee() {
+    connection.query(`
+    SELECT 
+        e.id, CONCAT(e.first_name, " ", e.last_name) AS name
+    FROM 
+        employee e
+    `,
+        (err, resEmployee) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            employeeArray = []
+            resEmployee.forEach(employeeData => {
+                employeeArray.push(employeeData.name);
+            });
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "employee",
+                    choices: employeeArray,
+                    message: `Which employee do you want to remove?`
+                },
+            ]).then(function (data) {
+                const employeeArray2 = resEmployee.filter(employeeData => employeeData.name === data.employee);
+                const employeeId = employeeArray2[0].id;
+
+                connection.query(
+                    'DELETE FROM employee WHERE id = ?',
+                    employeeId,
+                    (err, res) => {
+                        if (err) throw err;
+                        start();
+                    }
+                );
+            }
+            )
+        });
 };
 
 function updateEmployeeRole() {
