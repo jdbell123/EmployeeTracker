@@ -4,6 +4,7 @@ const cTable = require('console.table');
 require('dotenv').config();
 
 const Employee = require('./lib/employee');
+const Role = require('./lib/role');
 
 
 // create the connection information for the sql database
@@ -68,7 +69,7 @@ const start = () => {
                     viewAllRoles();
                     break;
                 case "Add Role":
-                    comingSoon();
+                    addRole();
                     break;
                 case "Remove Role":
                     comingSoon();
@@ -250,68 +251,83 @@ function addEmployee() {
                 newArray.push(element.managers_name);
             });
             newArray.push("None");
-            inquirer.prompt([
-                {
-                    type: "input",
-                    name: "firstName",
-                    message: `What is the employee's first name?`,
-                    validate: answer => {
-                        if (answer !== "") {
-                            return true;
-                        }
-                        return "Please enter at least one character.";
-                    }
-                },
-                {
-                    type: "input",
-                    name: "lastName",
-                    message: `What is the employee's last name?`,
-                    validate: answer => {
-                        if (answer !== "") {
-                            return true;
-                        }
-                        return "Please enter at least one character.";
-                    }
-                },
-                {
-                    type: "input",
-                    name: "roleId",
-                    message: `What is the employee's role?`,
-                    validate: answer => {
-                        if (answer !== "") {
-                            return true;
-                        }
-                        return "Please enter at least one character.";
-                    }
-                },
-                {
-                    type: "list",
-                    name: "manager",
-                    choices: newArray,
-                    message: `Who is the employee's manager?`
-                },
+            connection.query(`
+            SELECT 
+                r.id, r.title
+            FROM 
+                role r
+            GROUP BY
+                r.title, r.id;
+            `,
+                (err, resRole) => {
+                    if (err) throw err;
+                    // Log all results of the SELECT statement
+                    roleArray = []
+                    resRole.forEach(element => {
+                        roleArray.push(element.title);
+                    });
 
-            ]).then(function (data) {
-                let managerid;
-                const newArray2 = res.filter(managerData => managerData.managers_name === data.manager);
-                if (newArray2 === undefined || newArray2.length == 0) {
-                    managerid = null;
-                }
-                else {
-                    managerid = newArray2[0].id;
-                };
+                    inquirer.prompt([
+                        {
+                            type: "input",
+                            name: "firstName",
+                            message: `What is the employee's first name?`,
+                            validate: answer => {
+                                if (answer !== "") {
+                                    return true;
+                                }
+                                return "Please enter at least one character.";
+                            }
+                        },
+                        {
+                            type: "input",
+                            name: "lastName",
+                            message: `What is the employee's last name?`,
+                            validate: answer => {
+                                if (answer !== "") {
+                                    return true;
+                                }
+                                return "Please enter at least one character.";
+                            }
+                        },
+                        {
+                            type: "list",
+                            name: "role",
+                            choices: roleArray,
+                            message: `What is the employee's role?`
+                        },
+                        {
+                            type: "list",
+                            name: "manager",
+                            choices: newArray,
+                            message: `Who is the employee's manager?`
+                        },
 
-                const newEmployee = new Employee(data.firstName, data.lastName, data.roleId, managerid);
-                connection.query(
-                    'INSERT INTO employee SET ?',
-                    newEmployee,
-                    (err, res) => {
-                        if (err) throw err;
-                        start();
+                    ]).then(function (data) {
+                        const roleArray2 = resRole.filter(roleData => roleData.title === data.role);
+                        const roleId = roleArray2[0].id;
+
+                        let managerid;
+                        const newArray2 = res.filter(managerData => managerData.managers_name === data.manager);
+                        if (newArray2 === undefined || newArray2.length == 0) {
+                            managerid = null;
+                        }
+                        else {
+                            managerid = newArray2[0].id;
+                        };
+
+                        const newEmployee = new Employee(data.firstName, data.lastName, roleId, managerid);
+                        connection.query(
+                            'INSERT INTO employee SET ?',
+                            newEmployee,
+                            (err, res) => {
+                                if (err) throw err;
+                                start();
+                            }
+                        );
                     }
-                );
-            }
-            )
+                    )
+                })
         })
 }
 
@@ -333,6 +349,69 @@ function viewAllRoles() {
         });
 };
 
+function addRole() {
+    connection.query(`
+    SELECT 
+        d.id, d.name
+    FROM 
+        department d
+    GROUP BY
+        d.name, d.id;
+    `,
+        (err, res) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            newArray = []
+            res.forEach(element => {
+                newArray.push(element.name);
+            });
+            inquirer.prompt([
+                {
+                    type: "input",
+                    name: "title",
+                    message: `What is the title of the new role?`,
+                    validate: answer => {
+                        if (answer !== "") {
+                            return true;
+                        }
+                        return "Please enter at least one character.";
+                    }
+                },
+                {
+                    type: "input",
+                    name: "salary",
+                    message: `What is the salary of the new role?`,
+                    validate: answer => {
+                        if (answer !== "") {
+                            return true;
+                        }
+                        return "Please enter at least one character.";
+                    }
+                },
+                {
+                    type: "list",
+                    name: "department",
+                    choices: newArray,
+                    message: `Which department does the new role belong to?`
+                },
+
+            ]).then(function (data) {
+                const newArray2 = res.filter(departmentData => departmentData.name === data.department);
+                const departmentId = newArray2[0].id;
+
+                const newRole = new Role(data.title, data.salary, departmentId);
+                connection.query(
+                    'INSERT INTO role SET ?',
+                    newRole,
+                    (err, res) => {
+                        if (err) throw err;
+                        start();
+                    }
+                );
+            }
+            )
+        })
+}
 
 function viewAllDepartments() {
 
