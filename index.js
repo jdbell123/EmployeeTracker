@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const Employee = require('./lib/employee');
 const Role = require('./lib/role');
+const Department = require('./lib/department');
 
 
 // create the connection information for the sql database
@@ -45,7 +46,6 @@ const start = () => {
                 'View All Departments',
                 'Add Department',
                 'Remove Department',
-                'View Utilized Budget',
                 'QUIT'],
         })
         .then((data) => {
@@ -63,7 +63,7 @@ const start = () => {
                     addEmployee();
                     break;
                 case "Update Employee Role":
-                    comingSoon();
+                    updateEmployeeRole();
                     break;
                 case "View All Roles":
                     viewAllRoles();
@@ -78,12 +78,9 @@ const start = () => {
                     viewAllDepartments();
                     break;
                 case "Add Department":
-                    comingSoon();
+                    addDepartment();
                     break;
                 case "Remove Department":
-                    comingSoon();
-                    break;
-                case "View Utilized Budget":
                     comingSoon();
                     break;
                 default:
@@ -143,7 +140,6 @@ function viewAllEmployeesByDept() {
                     },
                 ])
                 .then((answer) => {
-
                     connection.query(`
                         SELECT 
                             e.id, e.first_name, e.last_name, r.title, d.name AS department, CONCAT("$",FORMAT(r.salary,2)) AS salary, CONCAT(m.first_name, " ", m.last_name) AS manager
@@ -329,12 +325,80 @@ function addEmployee() {
                     )
                 })
         })
-}
+};
+
+function updateEmployeeRole() {
+    connection.query(`
+    SELECT 
+        e.id, CONCAT(e.first_name, " ", e.last_name, " (Current Role: ", r.title, ")") AS name
+    FROM 
+        employee e,
+        role r
+    WHERE
+        e.role_id = r.id
+    `,
+        (err, resEmployee) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            employeeArray = []
+            resEmployee.forEach(employeeData => {
+                employeeArray.push(employeeData.name);
+            });
+            connection.query(`
+            SELECT 
+                r.id, r.title
+            FROM 
+                role r
+            `,
+                (err, resRole) => {
+                    if (err) throw err;
+                    // Log all results of the SELECT statement
+                    roleArray = []
+                    resRole.forEach(roleData => {
+                        roleArray.push(roleData.title);
+                    });
+                    inquirer.prompt([
+                        {
+                            type: "list",
+                            name: "employee",
+                            choices: employeeArray,
+                            message: `Which employee do you need to update the role on?`
+                        },
+                        {
+                            type: "list",
+                            name: "newRole",
+                            choices: roleArray,
+                            message: `What is the new role for the employee?`
+                        },
+
+                    ]).then(function (data) {
+                        const employeeArray2 = resEmployee.filter(employeeData => employeeData.name === data.employee);
+                        const employeeId = employeeArray2[0].id;
+
+                        const roleArray2 = resRole.filter(roleData => roleData.title === data.newRole);
+                        const roleId = roleArray2[0].id;
+
+                        connection.query(
+                            'UPDATE employee SET role_id = ? WHERE id = ?',
+                            [
+                                roleId,
+                                employeeId,
+                            ],
+                            (err, res) => {
+                                if (err) throw err;
+                                start();
+                            }
+                        );
+                    }
+                    )
+                });
+        });
+};
 
 function viewAllRoles() {
     connection.query(`
-                    SELECT 
-                    r.id, r.title, d.name AS department, CONCAT("$",FORMAT(r.salary,2)) AS salary
+        SELECT 
+            r.id, r.title, d.name AS department, CONCAT("$",FORMAT(r.salary,2)) AS salary
         FROM 
             role r
         INNER JOIN 
@@ -435,6 +499,33 @@ function viewAllDepartments() {
             start();
         });
 };
+
+function addDepartment() {
+    inquirer.prompt([
+        {
+            type: "input",
+            name: "name",
+            message: `What is the name of the new department?`,
+            validate: answer => {
+                if (answer !== "") {
+                    return true;
+                }
+                return "Please enter at least one character.";
+            }
+        },
+    ]).then(function (data) {
+        const newDepartment = new Department(data.name);
+        connection.query(
+            'INSERT INTO department SET ?',
+            newDepartment,
+            (err, res) => {
+                if (err) throw err;
+                start();
+            }
+        );
+    }
+    )
+}
 
 // connect to the mysql server and sql database
 connection.connect((err) => {
