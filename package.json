@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/jdbell123/EmployeeTracker#readme",
   "dependencies": {
+    "chalk": "^4.1.0",
     "console.table": "^0.10.0",
     "dotenv": "^8.2.0",
     "inquirer": "^8.0.0",
