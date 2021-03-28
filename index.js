@@ -1,6 +1,7 @@
 const mysql = require('mysql');
 const inquirer = require('inquirer');
 const cTable = require('console.table');
+const chalk = require('chalk');
 require('dotenv').config();
 
 const Employee = require('./lib/employee');
@@ -27,6 +28,7 @@ const connection = mysql.createConnection({
 
 // function which prompts the user for what action they should take
 const start = () => {
+    console.log(`\n`);
     inquirer
         .prompt({
             name: 'choice',
@@ -67,6 +69,9 @@ const start = () => {
                     break;
                 case "Update Employee Role":
                     updateEmployeeRole();
+                    break;
+                case "Update Employee Manager":
+                    updateEmployeeManager();
                     break;
                 case "View All Roles":
                     viewAllRoles();
@@ -436,6 +441,76 @@ function updateEmployeeRole() {
         });
 };
 
+function updateEmployeeManager() {
+    connection.query(`
+    SELECT 
+        e.id, CONCAT(e.first_name, " ", e.last_name) AS eeName, CONCAT(m.first_name, " ", m.last_name) AS mgrName
+    FROM 
+        employee e
+    LEFT JOIN
+        employee m ON e.manager_id = m.id;
+    `,
+        (err, resEmployee) => {
+            if (err) throw err;
+            // Log all results of the SELECT statement
+            employeeArray = []
+            resEmployee.forEach(employeeData => {
+                const concatName = employeeData.eeName + ` - (Current Manager: ${employeeData.mgrName})`;
+                employeeArray.push(concatName);
+            });
+            connection.query(`
+            SELECT 
+                e.id, CONCAT(e.first_name, " ", e.last_name) AS name
+            FROM 
+                employee e
+            `,
+                (err, resManager) => {
+                    if (err) throw err;
+                    // Log all results of the SELECT statement
+                    managerArray = []
+                    resManager.forEach(managerData => {
+                        managerArray.push(managerData.name);
+                    });
+                    inquirer.prompt([
+                        {
+                            type: "list",
+                            name: "employee",
+                            choices: employeeArray,
+                            message: `Which employee do you need to update the manager on?`
+                        },
+                        {
+                            type: "list",
+                            name: "newManager",
+                            choices: managerArray,
+                            message: `Who is the new manager for the employee?`
+                        },
+
+                    ]).then(function (data) {
+                        const str = data.employee.split("-", 1);
+                        const strTrim = str[0].trim();
+                        const employeeArray2 = resEmployee.filter(employeeData => employeeData.eeName === strTrim);
+                        const employeeId = employeeArray2[0].id;
+
+                        const managerArray2 = resManager.filter(managerData => managerData.name === data.newManager);
+                        const managerId = managerArray2[0].id;
+
+                        connection.query(
+                            'UPDATE employee SET manager_id = ? WHERE id = ?',
+                            [
+                                managerId,
+                                employeeId,
+                            ],
+                            (err, res) => {
+                                if (err) throw err;
+                                start();
+                            }
+                        );
+                    }
+                    )
+                });
+        });
+};
+
 function viewAllRoles() {
     connection.query(`
         SELECT 
@@ -662,20 +737,17 @@ function removeDepartment() {
                     (err, resCount) => {
                         if (err) throw err;
                         // Log all results of the SELECT statement
-                        console.log(resCount);
-                        console.log(resCount[0].COUNT);
                         let result = resCount[0].COUNT === 0;
-                        console.log(result);
                         if (result) {
-                            // connection.query(
-                            //     'DELETE FROM department WHERE id = ?',
-                            //     departmentId,
-                            //     (err, res) => {
-                            //         if (err) throw err;
+                            connection.query(
+                                'DELETE FROM department WHERE id = ?',
+                                departmentId,
+                                (err, res) => {
+                                    if (err) throw err;
                                     console.log(`The ${data.department} department has been removed from the system.`);
                                     start();
-                                // }
-                            // );
+                                }
+                            );
                         }
                         else {
                             console.error(`Unable to remove the ${data.department} department until no roles are assigned this department.`);
@@ -693,5 +765,6 @@ connection.connect((err) => {
     // run the start function after the connection is made to prompt the user
     console.log(`connected as id ${connection.threadId}\n`);
     console.clear();
+    console.log(chalk.bold.blue('Employee Management System\n'));
     start();
 });
