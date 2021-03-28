@@ -658,9 +658,9 @@ function viewAllDepartments() {
         d.id, d.name, CONCAT("$",FORMAT(SUM(r.salary),2)) AS utilized_budget
     FROM 
         department d 
-    INNER JOIN 
+    LEFT JOIN 
         role r on r.department_id = d.id 
-    INNER JOIN 
+    LEFT JOIN 
         employee e on e.role_id = r.department_id 
     GROUP BY 
         d.name, d.id;
